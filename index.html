@@ -8,54 +8,70 @@
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: white; display: flex; flex-direction: column; align-items: center; padding: 50px; }
         .container { background: #1e293b; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; max-width: 500px; width: 100%; }
-        input { padding: 12px; border-radius: 8px; border: none; width: 60%; font-size: 16px; outline: none; margin-bottom: 10px; }
+        
+        .input-section { margin-bottom: 20px; }
+        input { padding: 12px; border-radius: 8px; border: none; width: 85%; font-size: 14px; outline: none; margin-bottom: 10px; background: #334155; color: white; border: 1px solid #475569; }
         
         .btn-group { display: flex; gap: 10px; justify-content: center; margin-top: 15px; flex-wrap: wrap; }
-        button { padding: 12px 20px; border-radius: 8px; border: none; background: #3b82f6; color: white; font-weight: bold; cursor: pointer; transition: 0.3s; min-width: 140px; }
+        button { padding: 12px 20px; border-radius: 8px; border: none; background: #3b82f6; color: white; font-weight: bold; cursor: pointer; transition: 0.3s; min-width: 150px; }
         button:hover { background: #2563eb; }
         
-        #nftDisplay { margin-top: 30px; display: none; }
+        #nftDisplay { margin-top: 30px; display: none; position: relative; }
         
+        /* The Image Display */
         #nftImage { 
             width: 100%; border-radius: 15px; border: 4px solid #334155;
             background-color: #2e3a4e;
-            /* Default checkerboard */
             background-image: linear-gradient(45deg, #3d4b5f 25%, transparent 25%), linear-gradient(-45deg, #3d4b5f 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #3d4b5f 75%), linear-gradient(-45deg, transparent 75%, #3d4b5f 75%);
-            background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            background-size: 20px 20px;
+            background-position: center;
             background-repeat: no-repeat;
-            background-size: cover;
-            transition: background-image 0.5s ease-in-out;
+            transition: background 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .timer-text { font-size: 11px; display: block; margin-top: 4px; color: #cbd5e1; opacity: 0.8; }
+        /* Flash Animation Overlay */
+        #flashOverlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; border-radius: 15px; opacity: 0; pointer-events: none;
+        }
+        @keyframes flashEffect {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        .timer-label { font-size: 10px; color: #60a5fa; display: block; margin-top: 2px; }
         .loading { color: #94a3b8; font-style: italic; margin-top: 10px; }
-        .error { color: #ef4444; margin-top: 10px; }
     </style>
 </head>
 <body>
 
     <div class="container">
         <h1>LeGods Viewer</h1>
-        <p style="color: #94a3b8;">Auto-Processing Edition</p>
         
-        <input type="number" id="tokenId" placeholder="Enter Token ID" min="1">
-        <br>
-        <button id="viewBtn" onclick="fetchNFT()">View NFT</button>
+        <div class="input-section">
+            <input type="number" id="tokenId" placeholder="NFT Token ID (e.g. 1)" min="1">
+            <input type="text" id="bgInput" placeholder="Background URL" value="https://i.imgur.com/bYoBTeK_d.webp?maxwidth=760&fidelity=grand">
+        </div>
 
-        <div id="status" class="loading" style="display: none;">Scanning ApeChain...</div>
+        <button onclick="fetchNFT()">Scan ApeChain</button>
+
+        <div id="status" class="loading" style="display: none;">Scanning...</div>
         
         <div id="nftDisplay">
             <h2 id="nftName">Name</h2>
-            <img id="nftImage" alt="NFT Image" crossOrigin="anonymous">
+            <div style="position: relative;">
+                <img id="nftImage" alt="NFT Image" crossOrigin="anonymous">
+                <div id="flashOverlay"></div>
+            </div>
             
             <div class="btn-group">
                 <button onclick="handleDownload()">
-                    Download
-                    <span id="dlTimer" class="timer-text"></span>
+                    Download Render
+                    <span id="dlTimer" class="timer-label"></span>
                 </button>
                 <button onclick="setCustomBg()">
-                    Set Custom BG
-                    <span id="bgTimer" class="timer-text"></span>
+                    Apply Custom BG
+                    <span id="bgTimer" class="timer-label"></span>
                 </button>
             </div>
             
@@ -66,15 +82,14 @@
     <script>
         const CONTRACT_ADDRESS = "0xad9951b55c675664d9619b46483e9f65a57ab5e6";
         const RPC_URL = "https://rpc.apechain.com/http";
-        const CUSTOM_BG_URL = "https://i.imgur.com/GisLscs.jpeg";
         const abi = ["function tokenURI(uint256 tokenId) view returns (string)"];
 
         async function fetchNFT() {
             const id = document.getElementById('tokenId').value;
-            if (!id) return;
-            
             const status = document.getElementById('status');
             const display = document.getElementById('nftDisplay');
+            if (!id) return;
+            
             status.style.display = "block";
             status.innerText = "Connecting to ApeChain...";
             display.style.display = "none";
@@ -91,88 +106,84 @@
 
                 const img = document.getElementById('nftImage');
                 img.src = imageUrl;
-                // Reset to checkerboard style for new NFT
+                // Reset background
                 img.style.backgroundImage = "linear-gradient(45deg, #3d4b5f 25%, transparent 25%), linear-gradient(-45deg, #3d4b5f 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #3d4b5f 75%), linear-gradient(-45deg, transparent 75%, #3d4b5f 75%)";
                 img.style.backgroundSize = "20px 20px";
 
                 img.onload = () => {
-                    document.getElementById('nftName').innerText = metadata.name || `LeGod #${id}`;
-                    document.getElementById('nftDesc').innerText = metadata.description || "";
+                    document.getElementById('nftName').innerText = metadata.name;
+                    document.getElementById('nftDesc').innerText = metadata.description;
                     status.style.display = "none";
                     display.style.display = "block";
                 };
             } catch (err) {
-                status.innerText = "Error fetching NFT.";
-                status.className = "error";
+                status.innerText = "Error: Token not found.";
             }
         }
 
-        function startTimer(displayId) {
-            let timeLeft = 30;
-            const el = document.getElementById(displayId);
-            el.innerText = `Time left: ${timeLeft}s`;
-            
-            const interval = setInterval(() => {
-                timeLeft--;
-                el.innerText = `Time left: ${timeLeft}s`;
-                if (timeLeft <= 0) clearInterval(interval);
+        function runTimer(id) {
+            let sec = 30;
+            const el = document.getElementById(id);
+            const clock = setInterval(() => {
+                sec--;
+                el.innerText = `${sec}s remaining`;
+                if (sec <= 0) clearInterval(clock);
             }, 1000);
-
             return () => {
-                clearInterval(interval);
-                el.innerText = "Complete!";
-                setTimeout(() => { el.innerText = ""; }, 2000);
+                clearInterval(clock);
+                el.innerText = "COMPLETE";
+                setTimeout(() => el.innerText = "", 2000);
             };
         }
 
         async function handleDownload() {
-            const stop = startTimer('dlTimer');
+            const stop = runTimer('dlTimer');
             const img = document.getElementById('nftImage');
-            try {
-                const response = await fetch(img.src);
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `LeGod_Export.png`;
-                a.click();
-            } catch (e) { console.error("Download failed", e); }
+            const response = await fetch(img.src);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "LeGod_2066.png";
+            a.click();
             stop();
         }
 
         function setCustomBg() {
-            const stop = startTimer('bgTimer');
+            const stop = runTimer('bgTimer');
             const img = document.getElementById('nftImage');
+            const flash = document.getElementById('flashOverlay');
+            const bgUrl = document.getElementById('bgInput').value;
             
-            // 1. First, remove the original background (Transparency)
+            // Transparency Logic
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             canvas.width = img.naturalWidth;
             canvas.height = img.naturalHeight;
             ctx.drawImage(img, 0, 0);
 
-            const targetPixel = ctx.getImageData(canvas.width - 1, 0, 1, 1).data;
+            const corner = ctx.getImageData(canvas.width - 1, 0, 1, 1).data;
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imgData.data;
-            const tolerance = 15;
 
             for (let i = 0; i < data.length; i += 4) {
-                if (Math.abs(data[i] - targetPixel[0]) <= tolerance && 
-                    Math.abs(data[i+1] - targetPixel[1]) <= tolerance && 
-                    Math.abs(data[i+2] - targetPixel[2]) <= tolerance) {
-                    data[i + 3] = 0;
+                if (Math.abs(data[i] - corner[0]) < 30 && 
+                    Math.abs(data[i+1] - corner[1]) < 30 && 
+                    Math.abs(data[i+2] - corner[2]) < 30) {
+                    data[i+3] = 0;
                 }
             }
-            ctx.putImageData(imgData, 0, 0);
             
-            // 2. Update the image source to the transparent version
+            ctx.putImageData(imgData, 0, 0);
             img.src = canvas.toDataURL();
             
-            // 3. Set the custom image as the background behind the transparency
-            img.style.backgroundImage = `url('${CUSTOM_BG_URL}')`;
+            // Apply BG and Flash Effect
+            img.style.backgroundImage = `url('${bgUrl}')`;
             img.style.backgroundSize = "cover";
-            img.style.backgroundPosition = "center";
+            flash.style.animation = "flashEffect 0.4s ease-out";
             
+            // Clear animation so it can run again
+            setTimeout(() => { flash.style.animation = ""; }, 400);
             stop();
         }
     </script>
